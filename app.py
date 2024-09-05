@@ -6,14 +6,18 @@ from policyengine_core.charts import format_fig
 # Load the data
 @st.cache_data
 def load_data():
-    return pd.read_csv("or_rebate.csv")
+    data = pd.read_csv("or_rebate.csv")
+    # Convert year to integer to remove decimal point
+    data['year'] = data['year'].astype(int)
+    return data
 
 data = load_data()
 
 st.title("Oregon Rebate Impact on Poverty")
 
-# Add a toggle for taxability
-taxability = st.toggle("Show taxable scenario", value=False)
+# Add toggles for taxability and flat tax offset
+taxability = st.toggle("Taxable", value=False)
+flat_tax_offset = st.toggle("Offset by flat tax", value=False)
 
 # Define colors for age groups
 colors = {
@@ -23,20 +27,33 @@ colors = {
     "Overall": "#99ccff",  # Very light blue
 }
 
+# Determine which column to use based on toggle states
+def get_column_name(taxable, flat_tax):
+    if taxable and flat_tax:
+        return 'relative_poverty_reduction_taxable_flat_tax'
+    elif taxable and not flat_tax:
+        return 'relative_poverty_reduction_taxable'
+    elif not taxable and flat_tax:
+        return 'relative_poverty_reduction_flat_tax'
+    else:
+        return 'relative_poverty_reduction'
+
+y_column = get_column_name(taxability, flat_tax_offset)
+
+# Check if the selected column exists in the dataset
+if y_column not in data.columns:
+    st.error(f"Error: The column '{y_column}' is not present in the dataset. Please check the CSV file and column names.")
+    st.stop()
+
 # Create the plot
 fig = go.Figure()
 
 # Store final y-values for label positioning
 final_y_values = {}
 
-# Initialize min and max y values
-y_min, y_max = float('inf'), float('-inf')
-
 # Add traces for each age group
 for age_group in colors.keys():
     age_data = data[data['age_group'] == age_group]
-    
-    y_column = 'relative_poverty_reduction_taxable' if taxability else 'relative_poverty_reduction'
     
     trace = go.Scatter(
         x=age_data['year'], 
@@ -48,15 +65,6 @@ for age_group in colors.keys():
     )
     fig.add_trace(trace)
     final_y_values[age_group] = trace.y[-1]
-    
-    # Update y_min and y_max
-    y_min = min(y_min, min(trace.y))
-    y_max = max(y_max, max(trace.y))
-
-# Add some padding to the y-axis range
-y_range = y_max - y_min
-y_min -= 0.1 * y_range
-y_max += 0.1 * y_range
 
 # Function to adjust label positions
 def adjust_label_positions(positions, min_gap=0.02):
@@ -77,8 +85,9 @@ def adjust_label_positions(positions, min_gap=0.02):
 adjusted_positions = adjust_label_positions(final_y_values)
 
 # Update layout
+scenario_description = f"{'Taxable' if taxability else 'Not taxable'}, {'Offset by flat tax' if flat_tax_offset else 'Not offset by flat tax'}"
 fig.update_layout(
-    title='Oregon Rebate Impact on Poverty by Age Group Over Time',
+    title=f'Oregon Rebate Impact on Poverty by Age Group Over Time<br><sub>{scenario_description}</sub>',
     xaxis_title='Year',
     yaxis_title='Poverty Reduction (%)',
     height=650,
@@ -100,8 +109,13 @@ fig.update_xaxes(
     range=[2024.8, 2027.15]
 )
 
-# Update y-axis
-fig.update_yaxes(tickformat='.0%', range=[y_min, y_max])
+# Update y-axis with fixed range from -55% to 5%, with 5% at the top
+fig.update_yaxes(
+    tickformat='.0%',
+    range=[-0.55, 0.05],  # Fixed range from -55% to 5%, with 5% at the top
+    tickvals=[0.05, 0, -0.1, -0.2, -0.3, -0.4, -0.5],
+    ticktext=['', '0%', '-10%', '-20%', '-30%', '-40%', '-50%']
+)
 
 # Update hover template
 fig.update_traces(
@@ -126,6 +140,15 @@ fig = format_fig(fig)
 # Display the plot in Streamlit
 st.plotly_chart(fig)
 
-# Display the data table
+# Display the data table with formatted year
 st.subheader("Data Table")
-st.dataframe(data)
+
+# Function to format the year column
+def format_year(val):
+    return f"{val:d}"  # Format as integer without comma
+
+# Apply the formatting to the year column
+styled_data = data.style.format({'year': format_year})
+
+# Display the styled dataframe
+st.dataframe(styled_data)
