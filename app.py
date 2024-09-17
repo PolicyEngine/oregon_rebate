@@ -112,9 +112,9 @@ fig.update_xaxes(
 # Update y-axis with fixed range from -55% to 5%, with 5% at the top
 fig.update_yaxes(
     tickformat='.0%',
-    range=[-0.55, 0.05],  # Fixed range from -55% to 5%, with 5% at the top
-    tickvals=[0.05, 0, -0.1, -0.2, -0.3, -0.4, -0.5],
-    ticktext=['', '0%', '-10%', '-20%', '-30%', '-40%', '-50%']
+    range=[-0.90, 0.05],  # Fixed range from -55% to 5%, with 5% at the top
+    tickvals=[0.05, 0, -0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9],
+    ticktext=['', '0%', '-10%', '-20%', '-30%', '-40%', '-50%', '-60%', '-70%', '-80%', '-90%']
 )
 
 # Update hover template
