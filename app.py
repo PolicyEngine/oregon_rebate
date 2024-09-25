@@ -16,7 +16,7 @@ data = load_data()
 st.title("Oregon Rebate Impact on Poverty")
 
 # Add toggles for taxability and flat tax offset
-taxability = st.toggle("Taxable", value=False)
+taxability = st.toggle("Federally taxable", value=False)
 flat_tax_offset = st.toggle("Offset by flat tax", value=False)
 
 # Define colors for age groups
@@ -85,7 +85,7 @@ def adjust_label_positions(positions, min_gap=0.02):
 adjusted_positions = adjust_label_positions(final_y_values)
 
 # Update layout
-scenario_description = f"{'Taxable' if taxability else 'Not taxable'}, {'Offset by flat tax' if flat_tax_offset else 'Not offset by flat tax'}"
+scenario_description = f"{'Federally taxable' if taxability else 'Not taxable'}, {'Offset by flat tax' if flat_tax_offset else 'Not offset by flat tax'}"
 fig.update_layout(
     title=f'Oregon Rebate Impact on Poverty by Age Group Over Time<br><sub>{scenario_description}</sub>',
     xaxis_title='Year',
