@@ -42,6 +42,10 @@ reform_name = get_reform_name(taxability, flat_tax_offset)
 # Filter data for the selected reform
 filtered_data = data[data['reform'] == reform_name]
 
+# Define rebate amounts and flat tax rates
+rebate_amounts = {2025: 1160, 2026: 1605, 2027: 1686}
+flat_tax_rates = {2025: 0.0198, 2026: 0.0253, 2027: 0.0255}
+
 # Create the plot
 fig = go.Figure()
 
@@ -52,6 +56,41 @@ final_y_values = {}
 for age_group in colors.keys():
     age_data = filtered_data[filtered_data['age_group'] == age_group]
     
+    # Prepare custom data for hover
+    custom_data = []
+    for _, row in age_data.iterrows():
+        age_range = "all ages" if row['age_group'] == 'Overall' else row['age_group'].replace('-', ' to ')
+        taxability_text = "taxable" if "taxable" in reform_name else "untaxable"
+        flat_tax_text = f" and funded by a {flat_tax_rates[row['year']]:.2%} income tax" if "flat_tax" in reform_name else ""
+        
+        custom_data.append([
+            rebate_amounts[row['year']],
+            taxability_text,
+            flat_tax_text,
+            age_range,
+            row['relative_poverty_reduction'],
+            row['baseline_poverty_rate'],
+            row['reform_poverty_rate'],
+            row['year']
+        ])
+    
+    custom_data = []
+    for _, row in age_data.iterrows():
+        age_range = "all ages" if row['age_group'] == 'Overall' else row['age_group'].replace('-', ' to ')
+        taxability_text = "taxable" if "taxable" in reform_name else "untaxable"
+        flat_tax_text = f" and funded by a {flat_tax_rates[row['year']]:.2%} income tax" if "flat_tax" in reform_name else ""
+        
+        custom_data.append([
+            rebate_amounts[row['year']],
+            taxability_text,
+            flat_tax_text,
+            age_range,
+            row['relative_poverty_reduction'] * 100,  # Convert to percentage
+            row['baseline_poverty_rate'] * 100,  # Convert to percentage
+            row['reform_poverty_rate'] * 100,  # Convert to percentage
+            row['year']
+        ])
+
     trace = go.Scatter(
         x=age_data['year'], 
         y=age_data['relative_poverty_reduction'],
@@ -59,13 +98,15 @@ for age_group in colors.keys():
         name=age_group,
         line=dict(color=colors[age_group], width=2),
         showlegend=False,
-        hovertemplate='Year: %{x}<br>' +
-                      'Age Group: %{data.name}<br>' +
-                      'Poverty Reduction: %{y:.2%}<br>' +
-                      'Baseline Poverty Rate: %{customdata[0]:.2%}<br>' +
-                      'Reformed Poverty Rate: %{customdata[1]:.2%}<br>' +
-                      '<extra></extra>',
-        customdata=age_data[['baseline_poverty_rate', 'reform_poverty_rate']]
+        hovertemplate=(
+            "A $%{customdata[0]} rebate, federally %{customdata[1]}%{customdata[2]},<br>" +
+            "would lower poverty among Oregonians<br>" +
+            "age %{customdata[3]} by %{customdata[4]:.1f}%,<br>" +
+            "from %{customdata[5]:.1f}% to %{customdata[6]:.1f}%,<br>" +
+            "in %{customdata[7]}" +
+            "<extra></extra>"
+        ),
+        customdata=custom_data
     )
     fig.add_trace(trace)
     final_y_values[age_group] = age_data['relative_poverty_reduction'].iloc[-1]
@@ -97,6 +138,8 @@ fig.update_layout(
     height=650,
     width=750,
     margin=dict(r=80, l=50, b=70, t=100),
+    hovermode="closest",
+    hoverdistance=10,
     legend=dict(
         orientation="v",
         yanchor="top",
