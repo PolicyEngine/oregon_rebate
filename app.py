@@ -76,7 +76,11 @@ for age_group in colors.keys():
     
     custom_data = []
     for _, row in age_data.iterrows():
-        age_range = "all ages" if row['age_group'] == 'Overall' else row['age_group'].replace('-', ' to ')
+        if row['age_group'] == 'Overall':
+            age_range = "overall"
+        else:
+            age_range = f"age {row['age_group'].replace('-', ' to ')}"
+        
         taxability_text = "taxable" if "taxable" in reform_name else "untaxable"
         flat_tax_text = f" and funded by a {flat_tax_rates[row['year']]:.2%} income tax" if "flat_tax" in reform_name else ""
         
@@ -101,7 +105,7 @@ for age_group in colors.keys():
         hovertemplate=(
             "A $%{customdata[0]} rebate, federally %{customdata[1]}%{customdata[2]},<br>" +
             "would lower poverty among Oregonians<br>" +
-            "age %{customdata[3]} by %{customdata[4]:.1f}%,<br>" +
+            "%{customdata[3]} by %{customdata[4]:.1f}%,<br>" +
             "from %{customdata[5]:.1f}% to %{customdata[6]:.1f}%,<br>" +
             "in %{customdata[7]}" +
             "<extra></extra>"
