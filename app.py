@@ -7,7 +7,6 @@ from policyengine_core.charts import format_fig
 @st.cache_data
 def load_data():
     data = pd.read_csv("or_rebate.csv")
-    # Convert year to integer to remove decimal point
     data['year'] = data['year'].astype(int)
     return data
 
@@ -17,7 +16,7 @@ st.title("Oregon Rebate Impact on Poverty")
 
 # Add toggles for taxability and flat tax offset
 taxability = st.toggle("Federally taxable", value=False)
-flat_tax_offset = st.toggle("Offset by flat tax", value=False)
+flat_tax_offset = st.toggle("Offset by flat tax*", value=False)
 
 # Define colors for age groups
 colors = {
@@ -27,23 +26,21 @@ colors = {
     "Overall": "#99ccff",  # Very light blue
 }
 
-# Determine which column to use based on toggle states
-def get_column_name(taxable, flat_tax):
+# Determine which reform to use based on toggle states
+def get_reform_name(taxable, flat_tax):
     if taxable and flat_tax:
-        return 'relative_poverty_reduction_taxable_flat_tax'
+        return 'reform_taxable_flat_tax'
     elif taxable and not flat_tax:
-        return 'relative_poverty_reduction_taxable'
+        return 'reform_taxable'
     elif not taxable and flat_tax:
-        return 'relative_poverty_reduction_flat_tax'
+        return 'reform_flat_tax'
     else:
-        return 'relative_poverty_reduction'
+        return 'reform'
 
-y_column = get_column_name(taxability, flat_tax_offset)
+reform_name = get_reform_name(taxability, flat_tax_offset)
 
-# Check if the selected column exists in the dataset
-if y_column not in data.columns:
-    st.error(f"Error: The column '{y_column}' is not present in the dataset. Please check the CSV file and column names.")
-    st.stop()
+# Filter data for the selected reform
+filtered_data = data[data['reform'] == reform_name]
 
 # Create the plot
 fig = go.Figure()
@@ -53,18 +50,25 @@ final_y_values = {}
 
 # Add traces for each age group
 for age_group in colors.keys():
-    age_data = data[data['age_group'] == age_group]
+    age_data = filtered_data[filtered_data['age_group'] == age_group]
     
     trace = go.Scatter(
         x=age_data['year'], 
-        y=age_data[y_column],
+        y=age_data['relative_poverty_reduction'],
         mode='lines',
         name=age_group,
         line=dict(color=colors[age_group], width=2),
-        showlegend=False
+        showlegend=False,
+        hovertemplate='Year: %{x}<br>' +
+                      'Age Group: %{data.name}<br>' +
+                      'Poverty Reduction: %{y:.2%}<br>' +
+                      'Baseline Poverty Rate: %{customdata[0]:.2%}<br>' +
+                      'Reformed Poverty Rate: %{customdata[1]:.2%}<br>' +
+                      '<extra></extra>',
+        customdata=age_data[['baseline_poverty_rate', 'reform_poverty_rate']]
     )
     fig.add_trace(trace)
-    final_y_values[age_group] = trace.y[-1]
+    final_y_values[age_group] = age_data['relative_poverty_reduction'].iloc[-1]
 
 # Function to adjust label positions
 def adjust_label_positions(positions, min_gap=0.02):
@@ -112,14 +116,9 @@ fig.update_xaxes(
 # Update y-axis with fixed range from -55% to 5%, with 5% at the top
 fig.update_yaxes(
     tickformat='.0%',
-    range=[-0.90, 0.05],  # Fixed range from -55% to 5%, with 5% at the top
-    tickvals=[0.05, 0, -0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9],
-    ticktext=['', '0%', '-10%', '-20%', '-30%', '-40%', '-50%', '-60%', '-70%', '-80%', '-90%']
-)
-
-# Update hover template
-fig.update_traces(
-    hovertemplate='Year: %{x}<br>Age Group: %{data.name}<br>Poverty Reduction: %{y:.2%}<extra></extra>'
+    range=[-0.55, 0.05],  # Fixed range from -55% to 5%, with 5% at the top
+    tickvals=[0.05, 0, -0.1, -0.2, -0.3, -0.4, -0.5],
+    ticktext=['', '0%', '-10%', '-20%', '-30%', '-40%', '-50%']
 )
 
 # Add labels closer to the lines with adjusted positions
@@ -140,15 +139,12 @@ fig = format_fig(fig)
 # Display the plot in Streamlit
 st.plotly_chart(fig)
 
-# Display the data table with formatted year
-st.subheader("Data Table")
-
-# Function to format the year column
-def format_year(val):
-    return f"{val:d}"  # Format as integer without comma
-
-# Apply the formatting to the year column
-styled_data = data.style.format({'year': format_year})
-
-# Display the styled dataframe
-st.dataframe(styled_data)
+# Add flat tax rates as a note at the bottom
+st.markdown("""
+<small>
+* Flat Tax Rates
+- 2025: 1.98%
+- 2026: 2.53%
+- 2027: 2.55%
+</small>
+""", unsafe_allow_html=True)
